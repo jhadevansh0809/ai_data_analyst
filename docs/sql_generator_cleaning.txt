@@ -1,0 +1,89 @@
+This file explains the SQL cleaning logic in `app/nodes/sql_generator.py` (lines 39–46).
+
+Context:
+--------
+When we ask the LLM to generate SQL, it often returns the query wrapped in Markdown
+code fences. Typical responses look like this (or similar):
+
+```sql
+```sql
+SELECT id, cafe_id, total_amount
+FROM orders
+WHERE order_date >= '2024-01-01'
+LIMIT 100;
+```
+```
+
+However, the database expects *plain* SQL, without any Markdown formatting. The
+cleaning code exists to strip away those fences safely before validation and execution.
+
+The code:
+---------
+
+    sql_query = response.strip()
+    if sql_query.startswith("```sql"):
+        sql_query = sql_query[6:]
+    elif sql_query.startswith("```"):
+        sql_query = sql_query[3:]
+    if sql_query.endswith("```"):
+        sql_query = sql_query[:-3]
+    sql_query = sql_query.strip()
+
+Step‑by‑step explanation:
+-------------------------
+1. `response.strip()`
+   - Removes leading/trailing whitespace and newlines from the raw LLM output.
+   - Example: turns `"\n```sql\nSELECT ...\n```\n"` into
+     `"```sql\nSELECT ...\n```"`.
+
+2. `startswith("```sql")` / `startswith("```")`
+   - Many models wrap SQL in a fenced block like:
+       - ```sql
+         SELECT ...
+         ```
+     or just:
+       - ```
+         SELECT ...
+         ```
+   - If the string starts with `"```sql"`, we drop the first 6 characters
+     (` ```sql `), which removes the language tag and backticks.
+   - Otherwise, if it starts with `"```"`, we drop the first 3 characters
+     (` ``` `), removing a generic fenced block start.
+
+3. `endswith("```")`
+   - If the cleaned string still ends with a closing fenced block (` ``` `),
+     we remove the last 3 characters.
+   - This gets rid of the trailing code fence.
+
+4. Final `strip()`
+   - After removing fences, we call `strip()` again to remove any leftover
+     whitespace or blank lines at the edges.
+
+Net effect:
+-----------
+- Input (from LLM):
+
+    ```sql
+    ```sql
+    SELECT id, cafe_id, total_amount
+    FROM orders
+    WHERE order_date >= '2024-01-01'
+    LIMIT 100;
+    ```
+    ```
+
+- Output (`sql_query` after cleaning):
+
+    SELECT id, cafe_id, total_amount
+    FROM orders
+    WHERE order_date >= '2024-01-01'
+    LIMIT 100;
+
+This plain SQL string is then safe to pass into:
+  - the SQL validator (`validate_sql`), and
+  - the database execution layer (`execute_query`).
+
+Without this cleaning step, the validator and database would see the backticks
+and `sql` language tag, which would cause syntax errors or failed validation.
+
+
