@@ -1,0 +1,17 @@
+.git
+.gitignore
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.env
+reports
+*.md
+.pytest_cache
+.mypy_cache
+.cursor
+.idea
+.vscode
+graph_visualization.png
+docker-compose*.yaml
+docker-compose*.yml

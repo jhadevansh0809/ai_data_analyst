@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 import pandas as pd
 
 from app.visualization.chart_selector import ChartType, select_chart_type
-from app.visualization.chart_generator import generate_chart
+from app.visualization.chart_generator import generate_chart, prepare_dataframe_for_charts
 
 
 class VisualizationService:
@@ -26,7 +26,7 @@ class VisualizationService:
             return None, None
 
         # Use pandas as the intermediate format
-        df = pd.DataFrame(query_result)
+        df = prepare_dataframe_for_charts(pd.DataFrame(query_result))
 
         chart_type: ChartType = select_chart_type(df, user_query=user_query)
         chart_json = generate_chart(df, chart_type, title=user_query)

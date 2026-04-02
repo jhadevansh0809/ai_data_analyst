@@ -60,7 +60,11 @@ class ChartSelector:
         if len(numeric_cols) >= 2:
             return "scatter"
 
-        # 5) Fallback -> table
+        # 5) One numeric column, multiple rows -> bar (e.g. single aggregate broken out by row)
+        if len(numeric_cols) == 1 and len(df) > 1:
+            return "bar"
+
+        # 6) Fallback -> table
         return "table"
 
 

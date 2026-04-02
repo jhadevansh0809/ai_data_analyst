@@ -14,6 +14,41 @@ import plotly.express as px
 from app.visualization.chart_selector import ChartType
 
 
+def prepare_dataframe_for_charts(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce SQL/driver types so numeric and date columns are usable for charts.
+
+    Database drivers often return numbers as ``Decimal`` or strings, which pandas
+    stores as ``object``. Without coercion, chart selection sees no numeric
+    columns and falls back to a plain table (values only in the UI).
+    """
+    if df.empty:
+        return df
+    out = df.copy()
+
+    # Parse obvious date/time columns first (before numeric coercion).
+    for col in list(out.columns):
+        col_lower = str(col).lower()
+        if not any(k in col_lower for k in ("date", "time", "month", "year")):
+            continue
+        if pd.api.types.is_datetime64_any_dtype(out[col]):
+            continue
+        parsed = pd.to_datetime(out[col], errors="coerce")
+        if parsed.notna().sum() >= max(1, int(len(out) * 0.5)):
+            out[col] = parsed
+
+    # Coerce int/float/Decimal/numeric strings to numeric dtypes.
+    for col in list(out.columns):
+        if pd.api.types.is_numeric_dtype(out[col]):
+            continue
+        if pd.api.types.is_datetime64_any_dtype(out[col]):
+            continue
+        converted = pd.to_numeric(out[col], errors="coerce")
+        if converted.notna().sum() >= max(1, int(len(out) * 0.5)):
+            out[col] = converted
+
+    return out
+
+
 class ChartGenerator:
     """Generate Plotly charts from dataframes."""
 
@@ -76,6 +111,15 @@ class ChartGenerator:
                     fig = px.bar(df, x=metric, y=cat, orientation="h", title=title or f"{metric} by {cat}")
                 else:
                     fig = px.bar(df, x=cat, y=metric, title=title or f"{metric} by {cat}")
+            elif chart_type == "bar" and metric and not cat and len(df) > 1:
+                # One numeric column only (no category): bar against row index
+                fig = px.bar(
+                    df.assign(_row=df.index.astype(str)),
+                    x="_row",
+                    y=metric,
+                    title=title or str(metric),
+                )
+                fig.update_layout(xaxis_title="")
 
         elif chart_type == "scatter":
             x, y = ChartGenerator._pick_two_numeric(df)
