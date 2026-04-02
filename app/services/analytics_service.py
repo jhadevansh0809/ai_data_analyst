@@ -8,7 +8,8 @@ endpoint does, then adds visualization + reporting on top.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+import base64
+from typing import Any, Dict, Optional
 
 import numpy as np
 from app.chat.conversation_manager import conversation_manager
@@ -47,13 +48,8 @@ class AnalyticsService:
     ) -> Dict[str, Any]:
         """Run the full analytics pipeline for a chat request.
 
-        Returns a dict matching the desired chat response format:
-        {
-            "message": "...",
-            "sql_query": "...",
-            "chart": {...},
-            "report_id": "...",
-        }
+        Returns a dict with message, sql_query, chart, report_id, and
+        report_pdf_base64 (standard base64 of the PDF, no server-side storage).
         """
         # 0) Lightweight small-talk / greeting handling to avoid
         # unnecessary SQL generation when the user is not asking
@@ -80,6 +76,7 @@ class AnalyticsService:
                 "sql_query": "",
                 "chart": None,
                 "report_id": None,
+                "report_pdf_base64": None,
             }
 
         # 1) Build state for the existing graph
@@ -126,6 +123,7 @@ class AnalyticsService:
                 "sql_query": "",
                 "chart": None,
                 "report_id": None,
+                "report_pdf_base64": None,
             }
 
         # The user-facing message is the insights (or error message)
@@ -159,18 +157,13 @@ class AnalyticsService:
 
             chart_json = make_json_safe(raw_chart_json) if raw_chart_json is not None else None
 
-        # 4) PDF report generation
-        chart_description = None
-        if chart_type:
-            chart_description = f"Automatically generated {chart_type} chart for the query result."
-
-        report_id = report_generator.generate_report(
+        # 4) PDF report generation (in memory: summary + chart image)
+        report_id, pdf_bytes = report_generator.generate_report(
             user_query=user_query,
-            sql_query=final_sql,
             insights=insights or message,
-            chart_description=chart_description,
             chart_json=chart_json,
         )
+        report_pdf_base64 = base64.b64encode(pdf_bytes).decode("ascii")
 
         # 5) Update conversation memory
         conversation_manager.add_turn(
@@ -187,6 +180,7 @@ class AnalyticsService:
             "sql_query": final_sql,
             "chart": chart_json,
             "report_id": report_id,
+            "report_pdf_base64": report_pdf_base64,
         }
 
 

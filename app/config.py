@@ -39,7 +39,7 @@ class Config:
     
     # Server
     PORT: int = int(os.getenv("PORT", "8000"))
-    
+
     @classmethod
     def validate(cls) -> None:
         """Validate that required configuration is present."""

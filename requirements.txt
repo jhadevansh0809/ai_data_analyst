@@ -1,5 +1,5 @@
 fastapi==0.115.2
-uvicorn[standard]==0.30.6
+uvicorn[standard]==0.32.1
 
 langgraph==0.2.52
 langchain-core==0.3.17
@@ -23,6 +23,8 @@ kaleido==0.2.1
 
 # Reporting
 reportlab==4.2.5
+markdown>=3.5
+beautifulsoup4>=4.12
 
 # UI
 gradio==5.9.1

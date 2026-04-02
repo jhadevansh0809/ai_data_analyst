@@ -5,7 +5,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import gradio as gr
 
@@ -13,7 +12,6 @@ from app.api.chat_routes import router as chat_router
 from app.config import config
 from app.graph.builder import build_graph
 from app.graph.state import AnalystState
-from app.reports.report_generator import report_generator
 from app.services.analytics_service import create_analytics_service
 from app.ui.gradio_app import build_interface
 
@@ -39,8 +37,8 @@ else:
 
 
 app = FastAPI(
-    title="AI Data Analyst API",
-    description="Production-style AI Data Analyst backend with LangGraph",
+    title="My Cafe Chain AI Data Analyst API",
+    description="Cafe chain analytics backend with LangGraph and Gradio UI at /ui",
     version="1.0.0",
 )
 
@@ -86,9 +84,10 @@ class AskResponse(BaseModel):
 async def root():
     """Root endpoint."""
     return {
-        "message": "AI Data Analyst API",
+        "message": "My Cafe Chain AI Data Analyst API",
         "version": "1.0.0",
         "endpoints": {
+            "GET /ui": "My Cafe Chain AI Data Analyst — Gradio UI",
             "POST /ask": "Ask a question about your data",
             "POST /chat": "Chat-based analytics with conversation, charts and reports",
         },
@@ -152,19 +151,6 @@ async def ask_question(request: AskRequest):
             status_code=500,
             detail=f"Internal server error: {str(e)}",
         )
-
-
-@app.get("/reports/{report_id}")
-async def download_report(report_id: str):
-    """Download a generated PDF report."""
-    report_path = report_generator.get_report_path(report_id)
-    if not report_path.exists():
-        raise HTTPException(status_code=404, detail="Report not found")
-    return FileResponse(
-        path=str(report_path),
-        media_type="application/pdf",
-        filename=report_path.name,
-    )
 
 
 if __name__ == "__main__":

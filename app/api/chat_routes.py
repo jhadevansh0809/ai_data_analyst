@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -21,10 +21,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     message: str
     sql_query: str | None = None
-    # Use a broad type here; we already ensure JSON-serializability
-    # in the analytics service via fastapi.encoders.jsonable_encoder.
     chart: Optional[Any] = None
-    report_download_url: str | None = None
+    report_pdf_base64: str | None = None
 
 
 def get_analytics_service() -> AnalyticsService:
@@ -40,24 +38,23 @@ def get_analytics_service() -> AnalyticsService:
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(request: ChatRequest, service: AnalyticsService = Depends(get_analytics_service)):
+async def chat(
+    payload: ChatRequest,
+    service: AnalyticsService = Depends(get_analytics_service),
+):
     """Main chat endpoint for conversational analytics."""
-    if not request.query or not request.query.strip():
+    if not payload.query or not payload.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
     result = service.run_chat_analysis(
-        conversation_id=request.conversation_id,
-        user_query=request.query.strip(),
+        conversation_id=payload.conversation_id,
+        user_query=payload.query.strip(),
     )
-
-    report_id = result.get("report_id")
-    report_download_url = f"/reports/{report_id}" if report_id else None
 
     return ChatResponse(
         message=result.get("message") or "",
         sql_query=result.get("sql_query"),
         chart=result.get("chart"),
-        report_download_url=report_download_url,
+        report_pdf_base64=result.get("report_pdf_base64"),
     )
-
 
