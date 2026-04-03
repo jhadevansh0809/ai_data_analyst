@@ -1,4 +1,5 @@
 .env
 venv/
 __pycache__/
-reports/
+# Root-only generated PDFs/output — do not use plain "reports/" (it will ignore app/reports/)
+/reports/
