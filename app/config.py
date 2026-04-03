@@ -38,6 +38,7 @@ class Config:
     LANGCHAIN_ENDPOINT: Optional[str] = os.getenv("LANGCHAIN_ENDPOINT")
     
     # Server
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     PORT: int = int(os.getenv("PORT", "8000"))
 
     @classmethod

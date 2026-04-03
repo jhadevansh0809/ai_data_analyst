@@ -16,7 +16,7 @@ import requests
 from app.config import config
 
 
-BACKEND_URL = f"http://localhost:{config.PORT}"
+BACKEND_URL = config.BASE_URL
 
 
 def _call_backend(conversation_id: str, query: str) -> dict:
