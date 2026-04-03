@@ -5,7 +5,8 @@ __pycache__
 *.py[cod]
 *.egg-info
 .env
-reports
+# Only exclude root-level output dir — plain "reports" also matched app/reports/ and broke the image
+/reports
 *.md
 .pytest_cache
 .mypy_cache
