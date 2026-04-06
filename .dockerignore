@@ -1,0 +1,18 @@
+.git
+.gitignore
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.env
+# Only exclude root-level output dir — plain "reports" also matched app/reports/ and broke the image
+/reports
+*.md
+.pytest_cache
+.mypy_cache
+.cursor
+.idea
+.vscode
+graph_visualization.png
+docker-compose*.yaml
+docker-compose*.yml
