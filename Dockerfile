@@ -32,4 +32,4 @@ COPY . .
 EXPOSE 8000
 
 # Use `python -m` so we never rely on a possibly broken /usr/local/bin/uvicorn entrypoint.
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

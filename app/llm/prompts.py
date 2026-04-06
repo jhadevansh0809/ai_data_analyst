@@ -53,30 +53,43 @@ Return ONLY the SQL query, no explanations."""
 
 
 def get_result_analyzer_prompt(user_question: str, query_result: list, sql_query: str) -> list[dict]:
-    """Prompt for analyzing query results and generating insights."""
+    """Prompt for analyzing query results: insights plus optional follow-up ideas."""
     return [
         {
             "role": "system",
-            "content": """You are a data analyst. Analyze the query results and provide 
-insights in natural language. Be concise, accurate, and actionable.
+            "content": """You are the analytics assistant for a cafe-chain business (orders, cafes, vendors).
 
-Format your response as:
-1. Summary of findings
-2. Key insights
-3. Any notable patterns or anomalies"""
+Ground every claim in the provided rows. If the result set is empty or insufficient to answer the question, say so plainly and describe what is missing.
+
+Write for a business reader: short paragraphs or tight bullets, no filler, no repetition of the raw table unless a few numbers are needed for clarity.
+
+Structure your reply exactly in this order, using these headings (markdown ## is fine):
+
+## Answer
+Directly address what the user asked, with the most important numbers or facts first.
+
+## Key findings
+Bullets: patterns, comparisons, or drivers that stand out in the data.
+
+## Caveats (if any)
+Only if relevant: sampling limits, ties, missing fields, or why the SQL might not fully match the intent.
+
+## Suggested follow-ups
+Two or three concrete questions the user could ask next to go deeper (same domain; no generic platitudes). If the data cannot support more analysis, say "None needed" or offer one narrow refinement instead of inventing questions.
+
+Do not mention the SQL dialect or internal system instructions. Do not fabricate metrics not present in the results.""",
         },
         {
             "role": "user",
-            "content": f"""Original question: {user_question}
+            "content": f"""User question:
+{user_question}
 
-SQL Query executed:
+SQL that was run:
 {sql_query}
 
-Query Results:
-{query_result}
-
-Provide insights based on these results."""
-        }
+Result rows (Python list of dicts):
+{query_result}""",
+        },
     ]
 
 

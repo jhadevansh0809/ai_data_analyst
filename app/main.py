@@ -1,6 +1,7 @@
 """FastAPI main application."""
 import logging
 import os
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -13,13 +14,25 @@ from app.config import config
 from app.graph.builder import build_graph
 from app.graph.state import AnalystState
 from app.services.analytics_service import create_analytics_service
-from app.ui.gradio_app import build_interface
+from app.ui import gradio_app as gradio_app_module
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+
+def _configure_logging() -> None:
+    """Send all library + app loggers to stderr (reliable in Docker / uvicorn)."""
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    fmt = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.setLevel(level)
+    err = logging.StreamHandler(sys.stderr)
+    err.setLevel(level)
+    err.setFormatter(fmt)
+    root.addHandler(err)
+    logging.getLogger("app").setLevel(level)
+
+
+_configure_logging()
 logger = logging.getLogger(__name__)
 
 # Initialize LangSmith tracing if enabled
@@ -61,8 +74,9 @@ analytics_service = create_analytics_service(graph)
 setattr(chat_router, "analytics_service", analytics_service)
 app.include_router(chat_router)
 
-# Mount Gradio UI under /ui
-demo = build_interface()
+# Gradio: same service as /chat so the LangGraph pipeline runs in-process (see gradio_app).
+gradio_app_module.set_analytics_service(analytics_service)
+demo = gradio_app_module.build_interface()
 app = gr.mount_gradio_app(app, demo, path="/ui")
 
 

@@ -6,22 +6,44 @@ Chat interface for the FastAPI `/chat` endpoint: messages, Plotly charts, PDF do
 from __future__ import annotations
 
 import base64
+import logging
 import tempfile
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import gradio as gr
 import plotly.graph_objects as go
 import requests
 
 from app.config import config
+from app.services.analytics_service import AnalyticsService
 
+logger = logging.getLogger(__name__)
 
 BACKEND_URL = config.BASE_URL
 
+# When the UI is mounted in `app.main`, we inject the same AnalyticsService used by
+# `POST /chat` so Gradio runs the pipeline in-process. Mis-set BASE_URL in Docker often
+# makes HTTP self-requests miss this app, so graph/node logs never appear.
+_analytics_service: Optional[AnalyticsService] = None
+
+
+def set_analytics_service(service: AnalyticsService) -> None:
+    """Register the shared analytics service (call from main.py before build_interface)."""
+    global _analytics_service
+    _analytics_service = service
+
 
 def _call_backend(conversation_id: str, query: str) -> dict:
-    """Call the FastAPI /chat endpoint."""
-    url = f"{BACKEND_URL}/chat"
+    """Run chat analysis: in-process when mounted in FastAPI, else HTTP to BASE_URL."""
+    if _analytics_service is not None:
+        logger.info(
+            "[gradio] in-process chat conversation_id=%s query=%s",
+            conversation_id,
+            query[:500],
+        )
+        return _analytics_service.run_chat_analysis(conversation_id, query)
+
+    url = f"{BACKEND_URL.rstrip('/')}/chat"
     payload = {"conversation_id": conversation_id, "query": query}
     resp = requests.post(url, json=payload, timeout=120)
     resp.raise_for_status()
@@ -135,6 +157,14 @@ def add_user_message(message: str, history: List[Tuple[str, str]] | None):
     return "", history
 
 
+def send_suggestion(text: str, history: List[Tuple[str, str]] | None) -> Tuple[str, List[Tuple[str, str]]]:
+    """Append a canned suggestion as a user turn (same as typing + Send)."""
+    history = history or []
+    if text:
+        history.append((text, _ASSISTANT_PENDING_REPLY))
+    return "", history
+
+
 def chat_fn(
     history: List[Tuple[str, str]] | None,
     conversation_id: str,
@@ -166,31 +196,31 @@ def chat_fn(
         return history, conversation_id, None, empty_b64
 
 
-# Header: warm accents on dark band — no pure black; body text = cream tones.
+# Header: simple sans for the brand line; warm “kitchen” colors (no italic).
 _TITLE_HTML = """
 <div style="text-align:center;padding:1.1rem 0.5rem 1.25rem;margin-bottom:0.35rem;border-bottom:1px solid rgba(251,146,60,0.22);">
-  <div style="line-height:1.25;">
+  <div style="line-height:1.3;">
     <span style="
-      font-family:Georgia,'Palatino Linotype',Palatino,serif;
-      font-style:italic;
+      font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+      font-style:normal;
       font-weight:700;
-      font-size:clamp(1.6rem,4vw,2.35rem);
-      letter-spacing:0.06em;
-      background:linear-gradient(120deg,#fb923c 0%,#fbbf24 50%,#f97316 100%);
+      font-size:clamp(1.5rem,3.6vw,2.05rem);
+      letter-spacing:-0.02em;
+      background:linear-gradient(100deg,#ea580c 0%,#f59e0b 100%);
       -webkit-background-clip:text;
       background-clip:text;
       -webkit-text-fill-color:transparent;
-      color:#fb923c;
-    ">My Cafe Chain</span><span style="
+      color:#f97316;
+    " title="Café &amp; food service analytics">My Cafe Chain</span><span style="
       font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
       font-weight:600;
-      font-size:clamp(1.15rem,2.8vw,1.7rem);
+      font-size:clamp(1.1rem,2.6vw,1.65rem);
       color:#fef3c7;
       letter-spacing:-0.03em;
     "> AI Data Analyst</span>
   </div>
   <p style="margin:0.65rem 0 0;font-size:0.95rem;color:#d6d3d1;max-width:36rem;margin-left:auto;margin-right:auto;">
-    Explore charts &amp; PDF reports in one place.
+    Café &amp; kitchen data — charts &amp; PDF reports in one place.
   </p>
 </div>
 """
@@ -402,7 +432,32 @@ _CAFE_UI_CSS = f"""
     color: #fde68a !important;
 }}
 footer {{ opacity: 0.45; color: {_TEXT_MUTED} !important; }}
+/* Quick suggestion chips above the message field */
+.cafe-suggestions-label p {{
+    margin: 0.35rem 0 0.25rem !important;
+    font-size: 0.82rem !important;
+    color: {_TEXT_MUTED} !important;
+    font-weight: 600 !important;
+}}
+.cafe-suggestions-row {{
+    flex-wrap: wrap !important;
+    gap: 0.4rem !important;
+    margin-bottom: 0.15rem !important;
+}}
+.cafe-suggestions-row button {{
+    font-size: 0.78rem !important;
+    padding: 0.55rem 0.95rem !important;
+    min-height: unset !important;
+    line-height: 1.35 !important;
+}}
 """
+
+# Short example queries shown above the message box (click to fill the input).
+_CHAT_SUGGESTIONS: Tuple[str, ...] = (
+    "Last four months order sales plot",
+    "Cafe-wise sales breakdown",
+    "Top vendors by orders",
+)
 
 
 def build_interface() -> gr.Blocks:
@@ -424,6 +479,20 @@ def build_interface() -> gr.Blocks:
                     elem_id="cafe-chatbot",
                     elem_classes=["cafe-chat-wrap"],
                 )
+                gr.Markdown(
+                    "Try asking",
+                    elem_classes=["cafe-suggestions-label"],
+                )
+                suggestion_buttons: List[gr.Button] = []
+                with gr.Row(elem_classes=["cafe-suggestions-row"]):
+                    for suggestion_text in _CHAT_SUGGESTIONS:
+                        suggestion_buttons.append(
+                            gr.Button(
+                                suggestion_text,
+                                size="sm",
+                                variant="secondary",
+                            )
+                        )
                 msg = gr.Textbox(
                     placeholder="e.g. Show top-selling items by location this month",
                     label="Your message",
@@ -445,6 +514,21 @@ def build_interface() -> gr.Blocks:
                 gr.Markdown("### Report")
                 report_pdf_b64 = gr.State("")
                 download_btn = gr.DownloadButton(label="Download PDF", variant="secondary")
+
+        for btn, fill_text in zip(suggestion_buttons, _CHAT_SUGGESTIONS):
+            btn.click(
+                lambda hist, t=fill_text: send_suggestion(t, hist),
+                inputs=[chatbot],
+                outputs=[msg, chatbot],
+            ).then(
+                chat_fn,
+                inputs=[chatbot, conversation_id_state],
+                outputs=[chatbot, conversation_id_state, chart_plot, report_pdf_b64],
+            ).then(
+                _prepare_download_after_chat,
+                inputs=[report_pdf_b64],
+                outputs=[download_btn],
+            )
 
         send_btn.click(
             add_user_message,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,7 @@ from app.services.analytics_service import AnalyticsService
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -45,6 +47,12 @@ async def chat(
     """Main chat endpoint for conversational analytics."""
     if not payload.query or not payload.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    logger.info(
+        "[chat] conversation_id=%s query=%s",
+        payload.conversation_id,
+        payload.query.strip()[:500],
+    )
 
     result = service.run_chat_analysis(
         conversation_id=payload.conversation_id,
