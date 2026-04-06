@@ -220,7 +220,7 @@ _TITLE_HTML = """
     "> AI Data Analyst</span>
   </div>
   <p style="margin:0.65rem 0 0;font-size:0.95rem;color:#d6d3d1;max-width:36rem;margin-left:auto;margin-right:auto;">
-    Café &amp; kitchen data — charts &amp; PDF reports in one place.
+    Ask in plain language about <strong style="color:#e7e5e4;">sales</strong>, <strong style="color:#e7e5e4;">your locations</strong>, and <strong style="color:#e7e5e4;">suppliers</strong> — get answers, charts, and a PDF you can download.
   </p>
 </div>
 """
@@ -421,6 +421,59 @@ _CAFE_UI_CSS = f"""
 .cafe-insights .prose, .cafe-insights .markdown-body {{
     color: {_TEXT_SOFT} !important;
 }}
+/* Scope blurb — compact strip under the title */
+.cafe-scope-top {{
+    max-width: min(92rem, 98%) !important;
+    width: 100% !important;
+    margin: 0 auto 0.45rem auto !important;
+    padding: 0.35rem 0.65rem 0.4rem !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(251, 146, 60, 0.18) !important;
+    background: rgba(69, 64, 57, 0.45) !important;
+    box-shadow: none !important;
+}}
+.cafe-scope-top .markdown-body, .cafe-scope-top .prose, .cafe-scope-panel.cafe-scope-top {{
+    color: {_TEXT_MUTED} !important;
+    font-size: 0.8rem !important;
+    line-height: 1.32 !important;
+}}
+.cafe-scope-top p {{
+    margin: 0 !important;
+}}
+.cafe-scope-panel, .cafe-scope-panel .markdown-body, .cafe-scope-panel .prose {{
+    color: {_TEXT_SOFT} !important;
+    font-size: 0.88rem !important;
+    line-height: 1.45 !important;
+}}
+.cafe-scope-panel h3 {{
+    color: #fef3c7 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    margin: 0.35rem 0 0.4rem !important;
+}}
+.cafe-scope-panel h3:first-child {{
+    margin-top: 0 !important;
+}}
+.cafe-scope-panel ul {{
+    margin: 0.2rem 0 0.5rem 1.1rem !important;
+    padding: 0 !important;
+}}
+.cafe-scope-panel li {{
+    margin-bottom: 0.25rem !important;
+}}
+.cafe-scope-panel p {{
+    margin: 0.35rem 0 !important;
+}}
+.cafe-scope-panel strong {{
+    color: #fef3c7 !important;
+    font-weight: 600 !important;
+}}
+.cafe-scope-panel code {{
+    background: rgba(0,0,0,0.25) !important;
+    padding: 0.1rem 0.35rem !important;
+    border-radius: 4px !important;
+    font-size: 0.82rem !important;
+}}
 .cafe-plot-wrap {{
     border: 1px solid #d6d3d1 !important;
     border-radius: 12px !important;
@@ -452,9 +505,18 @@ footer {{ opacity: 0.45; color: {_TEXT_MUTED} !important; }}
 }}
 """
 
+# What the app knows — shown in the UI so visitors understand scope before chatting.
+_SCOPE_MARKDOWN = """
+**What this is**  
+A simple assistant for your café chain: you ask in everyday language, and it helps you understand **sales**, **each location**, and **who supplies you**.
+
+**What it can answer**  
+Anything that fits that picture — trends, comparisons, totals — and you may see a chart or download a short PDF summary on the right.
+"""
+
 # Short example queries shown above the message box (click to fill the input).
 _CHAT_SUGGESTIONS: Tuple[str, ...] = (
-    "Last four months order sales plot",
+    "Last four months order sales graph",
     "Cafe-wise sales breakdown",
     "Top vendors by orders",
 )
@@ -469,6 +531,10 @@ def build_interface() -> gr.Blocks:
         head='<meta name="color-scheme" content="dark" /><meta name="theme-color" content="#3a3532" />',
     ) as demo:
         gr.HTML(_TITLE_HTML)
+        gr.Markdown(
+            _SCOPE_MARKDOWN,
+            elem_classes=["cafe-scope-panel", "cafe-scope-top"],
+        )
 
         with gr.Row():
             with gr.Column(scale=2, elem_classes=["cafe-main-col"]):

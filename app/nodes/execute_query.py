@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any
 from app.graph.state import AnalystState
 from app.database.connection import get_db_manager
+from app.database.result_enrichment import enrich_rows_with_entity_names
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ def execute_query(state: AnalystState) -> Dict[str, Any]:
         db_manager = get_db_manager()
         logger.info("[execute_query] Executing query...")
         result = db_manager.execute_query(validated_sql)
+        result = enrich_rows_with_entity_names(db_manager, result)
         logger.info(f"[execute_query] Query executed successfully. Rows returned: {len(result)}")
         return {
             "query_result": result,
